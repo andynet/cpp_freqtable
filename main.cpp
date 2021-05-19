@@ -173,11 +173,12 @@ void print_vector(const vector<T>& vec, const string& sep=", ") {
     cout << endl;
 }
 
-void match(const string& source, uint& pos, uint size, string& destination) {
+void match(const string& source, uint& rpos, uint& qpos, uint size, string& destination) {
     for (int i=0; i<size; i++) {
-        destination[pos + i] = source[i];
+        destination[rpos + i] = source[qpos + i];
     }
-    pos += size;
+    rpos += size;
+    qpos += size;
 }
 
 void deletion(uint& pos, uint size) {
@@ -195,16 +196,16 @@ void add_seq(const sam_record& sam_rec, record& rec) {
     // print_vector(op_type);
     // print_vector(op_size);
 
-    uint i = sam_rec.pos - 1;
+    uint rpos = sam_rec.pos - 1;
+    uint qpos = 0;
     for (int j = 0; j < op_type.size(); j++) {
         if (op_type[j] == 'M') {
-            match(sam_rec.seq, i, op_size[j], rec.seq);
+            match(sam_rec.seq, rpos, qpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'D') {
-            // deletion(i, op_size[j]);
+            rpos += op_size[j];
         } else if (op_type[j] == 'I') {
-            // insertion(i, op_size[j]);
-        } else if (op_type[j] == 'H') { // intentionally do nothing
-        } else if (op_type[j] == 'S') { // intentionally do nothing
+            qpos += op_size[j];
+        } else if (op_type[j] == 'H' || op_type[j] == 'S' ) { // intentionally do nothing
         } else {
             cout << "Unexpected operation type " << op_type[j] << ". Allowed values are {M, D, I, H, S}.";
         }
@@ -275,6 +276,27 @@ string get_seq_variant(const string& seq, const map<string, string>& snp) {
     return "";
 }
 
+string detect_variant(const string& seq, const map<string, string>& snps, const map<string, uint>& thresholds) {
+    map<string, uint> counter;
+    for (const auto& snp : snps) {
+        uint pos = stoi(snp.first.substr(1, snp.first.length()-1));
+        char alt = snp.first[snp.first.length()-1];
+        if (seq.at(pos) == alt) {
+            if (counter.contains(snp.second)) {
+                counter[snp.second] += 1;
+            } else {
+                counter[snp.second] = 1;
+            }
+        }
+    }
+    for (const auto& c : counter) {
+        cout << c.first << ": " << c.second << endl;
+    }
+    cout << endl;
+    return "other";
+}
+
+
 int main() {
     // inputs:
     string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
@@ -296,8 +318,8 @@ int main() {
 
     // read mutations
     vector<string> variants;
-    map<string, string> snp;
-    map<string, uint> threshold;
+    map<string, string> snp;        // snp: variant
+    map<string, uint> threshold;    // variant: threshold
     read_mutations(mut_filename, variants, snp, threshold);
 
     // initialize alphabet
@@ -323,13 +345,16 @@ int main() {
 
     sam_reader sr(aln_filename);
     sr.skip_header();
-    sr.print_current_line();
+    // sr.print_current_line();
     while (!sr.eof()) {
         record rec = sr.get_next_record(ref.length());
-        cout << rec.qname << endl << rec.seq << endl;
+        rec.variant = detect_variant(rec.seq, snp, threshold);
     }
     record rec = sr.get_next_record(ref.length());
-    cout << rec.qname << endl << rec.seq << endl;
+    rec.variant = detect_variant(rec.seq, snp, threshold);
+    // cout << rec.qname << endl << rec.seq << endl;
+    // cout << rec.seq << endl;
+
 
     // store fullout
     delete_3d_array(A, ref.length(), variants.size(), alphabet.size());
