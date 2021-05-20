@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <cctype>
-#include <tuple>
 #include <map>
 #include <cstdlib>
 
@@ -40,18 +39,6 @@ int*** init_3d_array(uint x, uint y, uint z) {
         }
     }
     return res;
-}
-
-void print_3d_array(int*** A, uint x, uint y, uint z) {
-    for (int i=0; i<x; i++) {
-        for (int j=0; j<y; j++) {
-            for (int k=0; k<z; k++) {
-                cout << A[i][j][k] << " ";
-            }
-            cout << endl;
-        }
-        cout << endl << endl;
-    }
 }
 
 void delete_3d_array(int ***A, uint x, uint y, uint z) {
@@ -181,10 +168,6 @@ public:
         ss >> current_qname;
     }
 
-    void print_current_line() {
-        cout << current_line << endl;
-    }
-
     record get_next_record(uint n) {
         record rec(n);
         string new_line;
@@ -203,23 +186,6 @@ public:
         return rec;
     }
 };
-
-tuple<char, uint, char> parse_snp(string s) {
-    uint n = s.length();
-    tuple<char, uint, char> result = tuple(s[0], stoi(s.substr(1, n-1)), s[n-1]);
-    return result;
-}
-
-string get_seq_variant(const string& seq, const map<string, string>& snp) {
-    for (const auto& s : snp) {
-        tuple<char, uint, char> mut = parse_snp(s.first);
-
-        if (seq[get<1>(mut)-1] == get<2>(mut)) {
-            cout << get<0>(mut) << " " << get<1>(mut) << " " << get<2>(mut) << " " << s.second << endl;
-        }
-    }
-    return "";
-}
 
 string detect_variant(const string& seq, const map<string, string>& snps, map<string, uint>& thresholds) {
     map<string, uint> counter;
@@ -263,18 +229,15 @@ int main() {
     // outputs:
     string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
 
-    // read reference
     string ref = read_reference(ref_filename);
     cout << ref << endl;
 
-    // read mutations
     vector<string> variants;
     map<string, string> snp;        // snp: variant
     map<string, uint> threshold;    // variant: threshold
     read_mutations(mut_filename, variants, snp, threshold);
     variants.emplace_back("other");
 
-    // initialize alphabet
     vector<char> alphabet = {'A', 'C', 'G', 'T', 'N', '-'};
 
     int*** A = init_3d_array(ref.length(), variants.size(), alphabet.size());
