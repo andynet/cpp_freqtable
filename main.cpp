@@ -11,6 +11,77 @@
 
 using namespace std;
 
+class sam_record {
+public:
+    string qname, cigar, seq;
+    int pos = 0;
+
+    explicit sam_record(const string& line){
+        stringstream ss(line);
+        string del;
+        //    qname    flag   rname  pos    mapq   cigar    rnext  pnext  tlen   seq    qual tags
+        ss >> qname >> del >> del >> pos >> del >> cigar >> del >> del >> del >> seq >> del;
+    }
+};
+
+class record {
+public:
+    string qname;   // query name, 1st column in the SAM file
+    string seq;     // aligned sequence, 10th column, in the SAM file
+    string variant; // predicted using mut file
+
+    record() {qname=""; seq=""; variant="";}
+    explicit record(uint length) : record() {
+        seq = string(length, 'N');
+    }
+};
+
+void add_seq(const sam_record& sam_rec, record& rec);
+
+class sam_reader {
+private:
+    fstream sam;
+    string current_line;
+    string current_qname;
+
+public:
+    explicit sam_reader(const string& aln_file) {
+        sam = fstream(aln_file, fstream::in);
+    }
+
+    bool eof() {
+        return sam.eof();
+    }
+
+    void skip_header() {
+        getline(sam, current_line);
+        while (current_line[0] == '@') {
+            getline(sam, current_line);
+        }
+        stringstream ss(current_line);
+        ss >> current_qname;
+    }
+
+    record get_next_record(uint n) {
+        if (current_line.empty()) {return record();}
+        record rec(n);
+        string new_line;
+        string new_qname;
+        do {
+            sam_record sam_rec(current_line);
+            rec.qname = sam_rec.qname;
+            add_seq(sam_rec, rec);
+            getline(sam, new_line);
+            stringstream ss(new_line);
+            ss >> new_qname;
+            current_line = new_line;
+        } while (current_qname == new_qname);
+        // current_line = new_line;
+        current_qname = new_qname;
+        return rec;
+    }
+};
+
 string read_reference(const string& filename) {
     fstream file(filename, fstream::in);
 
@@ -47,7 +118,7 @@ void store_3d_array(int ***A, uint length, const vector<string>& variants, const
     for (int i=0; i<variants.size(); i++) {
         for (int j=0; j<length; j++) {
             for (int k=0; k<alphabet.size(); k++) {
-                out << variants.at(i) << "\t" << j << "\t" << alphabet.at(k) << "\t" << A[j][i][k] << endl;
+                out << variants.at(i) << '\t' << j << '\t' << alphabet.at(k) << '\t' << A[j][i][k] << endl;
             }
         }
     }
@@ -82,31 +153,6 @@ void read_mutations(const string& filename, vector<string>& variants, map<string
         }
     }
 }
-
-class sam_record {
-public:
-    // qname flag rname pos mapq cigar rnext pnext tlen seq qual tags
-    string qname, cigar, seq;
-    int pos = 0;
-
-    explicit sam_record(const string& line){
-        stringstream ss(line);
-        string del;
-        ss >> qname >> del >> del >> pos >> del >> cigar >> del >> del >> del >> seq >> del;
-    }
-};
-
-class record {
-public:
-    string qname;   // query name, 1st column in the SAM file
-    string seq;     // aligned sequence, 10th column, in the SAM file
-    string variant; // predicted using mut file
-
-    record() {qname=""; seq=""; variant="";}
-    explicit record(uint length) : record() {
-        seq = string(length, 'N');
-    }
-};
 
 int ctoi(char c) {
     return (int)c - 48;
@@ -149,55 +195,18 @@ void add_seq(const sam_record& sam_rec, record& rec) {
             qpos += op_size[j];
         } else if (op_type[j] == 'H' || op_type[j] == 'S' ) { // intentionally do nothing
         } else {
-            cout << "Unexpected operation type " << op_type[j] << ". Allowed values are {M, D, I, H, S}.";
+            cout << "Unexpected operation type " << op_type[j] << ". Allowed values are {M, D, I, H, S}." << endl;
+            rec.seq = "";
+            return;
         }
     }
 }
 
-class sam_reader {
-private:
-    fstream sam;
-    string current_line;
-    string current_qname;
-
-public:
-    explicit sam_reader(const string& aln_file) {
-        sam = fstream(aln_file, fstream::in);
-    }
-
-    bool eof() {
-        return sam.eof();
-    }
-
-    void skip_header() {
-        getline(sam, current_line);
-        while (current_line[0] == '@') {
-            getline(sam, current_line);
-        }
-        stringstream ss(current_line);
-        ss >> current_qname;
-    }
-
-    record get_next_record(uint n) {
-        record rec(n);
-        string new_line;
-        string new_qname;
-        do {
-            sam_record sam_rec(current_line);
-            rec.qname = sam_rec.qname;
-            add_seq(sam_rec, rec);
-            getline(sam, new_line);
-            stringstream ss(new_line);
-            ss >> new_qname;
-            current_line = new_line;
-        } while (current_qname == new_qname);
-        // current_line = new_line;
-        current_qname = new_qname;
-        return rec;
-    }
-};
 
 string detect_variant(const string& seq, const map<string, string>& snps, map<string, uint>& thresholds) {
+    string variant = OTHER;
+    if (seq.empty()) {return variant;}
+
     map<string, uint> counter;
     for (const auto& snp : snps) {
         uint pos = stoi(snp.first.substr(1, snp.first.length()-1));
@@ -210,20 +219,21 @@ string detect_variant(const string& seq, const map<string, string>& snps, map<st
             }
         }
     }
-    string variant = OTHER;
+
     for (const auto& c : counter) {
         string tmp = string(c.first);
         if (c.second >= thresholds[tmp]) {
             variant = tmp;
         }
     }
+
     return variant;
 }
 
 void add_counts(int ***A, const string& seq, const string& variant, const vector<string>& variants, const vector<char>& alphabet) {
     auto tmp = find(variants.begin(), variants.end(), variant);
     uint variant_num = distance(variants.begin(), tmp);
-    cout << variant_num << endl;
+    // cout << variant_num << endl;
     for (int i=0; i<seq.length(); i++) {
         auto tmp2 = find(alphabet.begin(), alphabet.end(), seq.at(i));
         uint char_num = distance(alphabet.begin(), tmp2);
@@ -235,6 +245,7 @@ int main() {
     // inputs:
     string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
     string aln_filename = "/home/andy/projects/cpp_freqtable/data/covid_aln.sam";
+    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
     string mut_filename = "/home/andy/projects/cpp_freqtable/data/mut.txt";
     // outputs:
     string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
@@ -254,18 +265,24 @@ int main() {
 
     sam_reader sr(aln_filename);
     sr.skip_header();
+    int i = 0;
     while (!sr.eof()) {
         record rec = sr.get_next_record(ref.length());
         rec.variant = detect_variant(rec.seq, snp, threshold);
         add_counts(A, rec.seq, rec.variant, variants, alphabet);
+        if (i % 1000 == 0){
+            cout << i << " records processed." << endl;
+        }
+        i++;
     }
     record rec = sr.get_next_record(ref.length());
     rec.variant = detect_variant(rec.seq, snp, threshold);
     add_counts(A, rec.seq, rec.variant, variants, alphabet);
+    cout << "All records processed." << endl;
 
     fstream out = fstream(tsv_filename, fstream::out | fstream::trunc);
-    // store_3d_array(A, ref.length(), variants, alphabet, out);
-    store_3d_array(A, ref.length(), variants, alphabet, cout);
+    store_3d_array(A, ref.length(), variants, alphabet, out);
+    // store_3d_array(A, ref.length(), variants, alphabet, cout);
     delete_3d_array(A, ref.length(), variants.size(), alphabet.size());
     return 0;
 }
