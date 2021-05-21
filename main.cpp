@@ -7,6 +7,8 @@
 #include <map>
 #include <cstdlib>
 
+#define OTHER "other"
+
 using namespace std;
 
 string read_reference(const string& filename) {
@@ -41,6 +43,16 @@ int*** init_3d_array(uint x, uint y, uint z) {
     return res;
 }
 
+void store_3d_array(int ***A, uint length, const vector<string>& variants, const vector<char>& alphabet, ostream& out) {
+    for (int i=0; i<variants.size(); i++) {
+        for (int j=0; j<length; j++) {
+            for (int k=0; k<alphabet.size(); k++) {
+                out << variants.at(i) << "\t" << j << "\t" << alphabet.at(k) << "\t" << A[j][i][k] << endl;
+            }
+        }
+    }
+}
+
 void delete_3d_array(int ***A, uint x, uint y, uint z) {
     // cout << "Deleting array of size (" << x << ", " << y << ", " << z << ")." << endl;
     for (int i=0; i<x; i++) {
@@ -52,9 +64,7 @@ void delete_3d_array(int ***A, uint x, uint y, uint z) {
     delete[] A;
 }
 
-void read_mutations(
-    const string& filename, vector<string>& variants, map<string, string>& snps, map<string, uint>& thresholds
-) {
+void read_mutations(const string& filename, vector<string>& variants, map<string, string>& snps, map<string, uint>& thresholds) {
     fstream file(filename, fstream::in);
     string tmp;
     string variant;
@@ -200,7 +210,7 @@ string detect_variant(const string& seq, const map<string, string>& snps, map<st
             }
         }
     }
-    string variant = "other";
+    string variant = OTHER;
     for (const auto& c : counter) {
         string tmp = string(c.first);
         if (c.second >= thresholds[tmp]) {
@@ -236,7 +246,7 @@ int main() {
     map<string, string> snp;        // snp: variant
     map<string, uint> threshold;    // variant: threshold
     read_mutations(mut_filename, variants, snp, threshold);
-    variants.emplace_back("other");
+    variants.emplace_back(OTHER);
 
     vector<char> alphabet = {'A', 'C', 'G', 'T', 'N', '-'};
 
@@ -253,7 +263,9 @@ int main() {
     rec.variant = detect_variant(rec.seq, snp, threshold);
     add_counts(A, rec.seq, rec.variant, variants, alphabet);
 
-    // store fullout
+    fstream out = fstream(tsv_filename, fstream::out | fstream::trunc);
+    // store_3d_array(A, ref.length(), variants, alphabet, out);
+    store_3d_array(A, ref.length(), variants, alphabet, cout);
     delete_3d_array(A, ref.length(), variants.size(), alphabet.size());
     return 0;
 }
