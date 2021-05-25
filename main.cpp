@@ -126,8 +126,8 @@ void store_3d_array(int ***A, uint length, const vector<string>& variants, const
 
 void delete_3d_array(int ***A, uint x, uint y, uint z) {
     // cout << "Deleting array of size (" << x << ", " << y << ", " << z << ")." << endl;
-    for (int i=0; i<x; i++) {
-        for (int j=0; j<y; j++) {
+    for (uint i=0; i<x; i++) {
+        for (uint j=0; j<y; j++) {
             delete[] A[i][j];
         }
         delete[] A[i];
@@ -202,6 +202,9 @@ void add_seq(const sam_record& sam_rec, record& rec) {
     }
 }
 
+uint get_pos(const string& s) {
+    return stoi(s.substr(1, s.length()-1)) - 1;
+}
 
 string detect_variant(const string& seq, const map<string, string>& snps, map<string, uint>& thresholds) {
     string variant = OTHER;
@@ -209,7 +212,7 @@ string detect_variant(const string& seq, const map<string, string>& snps, map<st
 
     map<string, uint> counter;
     for (const auto& snp : snps) {
-        uint pos = stoi(snp.first.substr(1, snp.first.length()-1));
+        uint pos = get_pos(snp.first);
         char alt = snp.first[snp.first.length()-1];
         if (seq.at(pos) == alt) {
             if (counter.contains(snp.second)) {
@@ -233,11 +236,27 @@ string detect_variant(const string& seq, const map<string, string>& snps, map<st
 void add_counts(int ***A, const string& seq, const string& variant, const vector<string>& variants, const vector<char>& alphabet) {
     auto tmp = find(variants.begin(), variants.end(), variant);
     uint variant_num = distance(variants.begin(), tmp);
-    // cout << variant_num << endl;
     for (int i=0; i<seq.length(); i++) {
         auto tmp2 = find(alphabet.begin(), alphabet.end(), seq.at(i));
-        uint char_num = distance(alphabet.begin(), tmp2);
+        uint char_num;
+        if (tmp2 == alphabet.end()) {
+            char_num = distance(alphabet.begin(), find(alphabet.begin(), alphabet.end(), 'N'));
+        } else {
+            char_num = distance(alphabet.begin(), tmp2);
+        }
         A[i][variant_num][char_num] += 1;
+    }
+}
+
+
+
+void check_sanity(const string& reference, const map<string, string>& snp) {
+    for (const auto& s : snp) {
+        char ref = s.first[0];
+        uint pos = get_pos(s.first);
+        if (reference[pos] != ref) {
+            cout << "reference[" << pos << "] is not " << ref << endl;
+        }
     }
 }
 
@@ -258,6 +277,8 @@ int main() {
     map<string, uint> threshold;    // variant: threshold
     read_mutations(mut_filename, variants, snp, threshold);
     variants.emplace_back(OTHER);
+
+    check_sanity(ref, snp);
 
     vector<char> alphabet = {'A', 'C', 'G', 'T', 'N', '-'};
 
