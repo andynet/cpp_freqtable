@@ -6,6 +6,7 @@
 #include <cctype>
 #include <map>
 #include <cstdlib>
+#include <cstring>
 
 #define OTHER "other"
 
@@ -239,11 +240,7 @@ void add_counts(int ***A, const string& seq, const string& variant, const vector
     for (int i=0; i<seq.length(); i++) {
         auto tmp2 = find(alphabet.begin(), alphabet.end(), seq.at(i));
         uint char_num;
-        if (tmp2 == alphabet.end()) {
-            char_num = distance(alphabet.begin(), find(alphabet.begin(), alphabet.end(), 'N'));
-        } else {
-            char_num = distance(alphabet.begin(), tmp2);
-        }
+        char_num = distance(alphabet.begin(), tmp2);
         A[i][variant_num][char_num] += 1;
     }
 }
@@ -256,6 +253,21 @@ void check_sanity(const string& reference, const map<string, string>& snp) {
         uint pos = get_pos(s.first);
         if (reference[pos] != ref) {
             cout << "reference[" << pos << "] is not " << ref << endl;
+        }
+    }
+}
+
+void correct_alphabet(string& seq, const vector<char>& alphabet, const char c) {
+    for (char & i : seq) {
+        i = (char)toupper(i);
+        int equal = 0;
+        for (char j : alphabet) {
+            if (i == j) {
+                equal++;
+            }
+        }
+        if (equal == 0) {
+            i = c;
         }
     }
 }
@@ -289,6 +301,7 @@ int main() {
     int i = 0;
     while (!sr.eof()) {
         record rec = sr.get_next_record(ref.length());
+        correct_alphabet(rec.seq, alphabet, 'N');
         rec.variant = detect_variant(rec.seq, snp, threshold);
         add_counts(A, rec.seq, rec.variant, variants, alphabet);
         if (i % 1000 == 0){
@@ -297,6 +310,7 @@ int main() {
         i++;
     }
     record rec = sr.get_next_record(ref.length());
+    correct_alphabet(rec.seq, alphabet, 'N');
     rec.variant = detect_variant(rec.seq, snp, threshold);
     add_counts(A, rec.seq, rec.variant, variants, alphabet);
     cout << "All records processed." << endl;
