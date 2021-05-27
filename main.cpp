@@ -101,7 +101,6 @@ string read_reference(const string& filename) {
 }
 
 int*** init_3d_array(uint x, uint y, uint z) {
-    // cout << "Initializing array of size (" << x << ", " << y << ", " << z << ")." << endl;
     int*** res = new int**[x];
     for (int i=0; i<x; i++) {
         res[i] = new int*[y];
@@ -126,7 +125,6 @@ void store_3d_array(int ***A, uint length, const vector<string>& variants, const
 }
 
 void delete_3d_array(int ***A, uint x, uint y, uint z) {
-    // cout << "Deleting array of size (" << x << ", " << y << ", " << z << ")." << endl;
     for (uint i=0; i<x; i++) {
         for (uint j=0; j<y; j++) {
             delete[] A[i][j];
@@ -136,7 +134,7 @@ void delete_3d_array(int ***A, uint x, uint y, uint z) {
     delete[] A;
 }
 
-void read_mutations(const string& filename, vector<string>& variants, map<string, string>& snps, map<string, uint>& thresholds) {
+void read_mutations(const string& filename, vector<string>& variants, multimap<string, string>& snps, map<string, uint>& thresholds) {
     fstream file(filename, fstream::in);
     string tmp;
     string variant;
@@ -192,11 +190,12 @@ void add_seq(const sam_record& sam_rec, record& rec) {
             match(sam_rec.seq, rpos, qpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'D') {
             rpos += op_size[j];
-        } else if (op_type[j] == 'I') {
+        } else if (op_type[j] == 'I' || op_type[j] == 'S') {
             qpos += op_size[j];
-        } else if (op_type[j] == 'H' || op_type[j] == 'S' ) { // intentionally do nothing
+        } else if (op_type[j] == 'H' ) {
+            // intentionally do nothing
         } else {
-            cout << "Unexpected operation type " << op_type[j] << ". Allowed values are {M, D, I, H, S}." << endl;
+            // cout << "Unexpected operation type " << op_type[j] << ". Allowed values are {M, D, I, H, S}." << endl;
             rec.seq = "";
             return;
         }
@@ -207,7 +206,7 @@ uint get_pos(const string& s) {
     return stoi(s.substr(1, s.length()-1)) - 1;
 }
 
-string detect_variant(const string& seq, const map<string, string>& snps, map<string, uint>& thresholds) {
+string detect_variant(const string& seq, const multimap<string, string>& snps, map<string, uint>& thresholds) {
     string variant = OTHER;
     if (seq.empty()) {return variant;}
 
@@ -247,7 +246,7 @@ void add_counts(int ***A, const string& seq, const string& variant, const vector
 
 
 
-void check_sanity(const string& reference, const map<string, string>& snp) {
+void check_sanity(const string& reference, const multimap<string, string>& snp) {
     for (const auto& s : snp) {
         char ref = s.first[0];
         uint pos = get_pos(s.first);
@@ -275,17 +274,17 @@ void correct_alphabet(string& seq, const vector<char>& alphabet, const char c) {
 int main() {
     // inputs:
     string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
-    string aln_filename = "/home/andy/projects/cpp_freqtable/data/covid_aln.sam";
-    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
+    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/covid_aln.sam";
+    string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
     string mut_filename = "/home/andy/projects/cpp_freqtable/data/mut.txt";
     // outputs:
     string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
 
     string ref = read_reference(ref_filename);
-    cout << ref << endl;
+    // cout << ref << endl;
 
     vector<string> variants;
-    map<string, string> snp;        // snp: variant
+    multimap<string, string> snp;   // snp: variant
     map<string, uint> threshold;    // variant: threshold
     read_mutations(mut_filename, variants, snp, threshold);
     variants.emplace_back(OTHER);
@@ -301,6 +300,7 @@ int main() {
     int i = 0;
     while (!sr.eof()) {
         record rec = sr.get_next_record(ref.length());
+        // cout << rec.seq << '\n';
         correct_alphabet(rec.seq, alphabet, 'N');
         rec.variant = detect_variant(rec.seq, snp, threshold);
         add_counts(A, rec.seq, rec.variant, variants, alphabet);
@@ -310,6 +310,7 @@ int main() {
         i++;
     }
     record rec = sr.get_next_record(ref.length());
+    // cout << rec.seq << '\n';
     correct_alphabet(rec.seq, alphabet, 'N');
     rec.variant = detect_variant(rec.seq, snp, threshold);
     add_counts(A, rec.seq, rec.variant, variants, alphabet);
