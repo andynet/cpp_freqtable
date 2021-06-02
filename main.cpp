@@ -65,19 +65,22 @@ public:
 
     record get_next_record(uint n) {
         if (current_line.empty()) {return record();}
-        record rec(n);
         string new_line;
+        record rec(n);
         string new_qname;
         do {
             sam_record sam_rec(current_line);
             rec.qname = sam_rec.qname;
             add_seq(sam_rec, rec);
             getline(sam, new_line);
-            stringstream ss(new_line);
-            ss >> new_qname;
+            if (new_line.empty()) {
+                new_qname = "";
+            } else {
+                stringstream ss(new_line);
+                ss >> new_qname;
+            }
             current_line = new_line;
         } while (current_qname == new_qname);
-        // current_line = new_line;
         current_qname = new_qname;
         return rec;
     }
@@ -91,7 +94,7 @@ string read_reference(const string& filename) {
     while (!file.eof()) {
         getline(file, tmp);
         if (tmp[0] == '>') {
-            // cout << tmp << endl;
+            // skip
         } else {
             ref += tmp;
         }
@@ -134,6 +137,13 @@ void delete_3d_array(int ***A, uint x, uint y, uint z) {
     delete[] A;
 }
 
+string trim(const string& line) {
+    const char* white_space = " \t\v\r\n";
+    size_t start = line.find_first_not_of(white_space);
+    size_t end = line.find_last_not_of(white_space);
+    return start == end ? string() : line.substr(start, end - start + 1);
+}
+
 void read_mutations(const string& filename, vector<string>& variants, multimap<string, string>& snps, map<string, uint>& thresholds) {
     fstream file(filename, fstream::in);
     string tmp;
@@ -141,6 +151,7 @@ void read_mutations(const string& filename, vector<string>& variants, multimap<s
     uint thr;
     while (!file.eof()) {
         getline(file, tmp);
+        tmp = trim(tmp);
         stringstream ss(tmp);
         ss >> variant >> thr;
         variants.push_back(variant);
@@ -178,6 +189,13 @@ void match(const string& source, uint& rpos, uint& qpos, uint size, string& dest
     qpos += size;
 }
 
+void deletion(uint& rpos, uint& qpos, uint size, string& destination) {
+    for (int i=0; i<size; i++) {
+        destination[rpos + i] = '-';
+    }
+    rpos += size;
+}
+
 void add_seq(const sam_record& sam_rec, record& rec) {
     vector<uint> op_size;
     vector<char> op_type;
@@ -189,7 +207,7 @@ void add_seq(const sam_record& sam_rec, record& rec) {
         if (op_type[j] == 'M') {
             match(sam_rec.seq, rpos, qpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'D') {
-            rpos += op_size[j];
+            deletion(rpos, qpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'I' || op_type[j] == 'S') {
             qpos += op_size[j];
         } else if (op_type[j] == 'H' ) {
@@ -274,14 +292,12 @@ void correct_alphabet(string& seq, const vector<char>& alphabet, const char c) {
 int main() {
     // inputs:
     string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
-    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/covid_aln.sam";
     string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
     string mut_filename = "/home/andy/projects/cpp_freqtable/data/mut.txt";
     // outputs:
     string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
 
     string ref = read_reference(ref_filename);
-    // cout << ref << endl;
 
     vector<string> variants;
     multimap<string, string> snp;   // snp: variant
@@ -300,7 +316,6 @@ int main() {
     int i = 0;
     while (!sr.eof()) {
         record rec = sr.get_next_record(ref.length());
-        // cout << rec.seq << '\n';
         correct_alphabet(rec.seq, alphabet, 'N');
         rec.variant = detect_variant(rec.seq, snp, threshold);
         add_counts(A, rec.seq, rec.variant, variants, alphabet);
@@ -309,16 +324,10 @@ int main() {
         }
         i++;
     }
-    record rec = sr.get_next_record(ref.length());
-    // cout << rec.seq << '\n';
-    correct_alphabet(rec.seq, alphabet, 'N');
-    rec.variant = detect_variant(rec.seq, snp, threshold);
-    add_counts(A, rec.seq, rec.variant, variants, alphabet);
     cout << "All records processed." << endl;
 
     fstream out = fstream(tsv_filename, fstream::out | fstream::trunc);
     store_3d_array(A, ref.length(), variants, alphabet, out);
-    // store_3d_array(A, ref.length(), variants, alphabet, cout);
     delete_3d_array(A, ref.length(), variants.size(), alphabet.size());
     return 0;
 }
