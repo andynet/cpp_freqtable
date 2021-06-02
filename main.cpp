@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <getopt.h>
+
 #define OTHER "other"
 
 using namespace std;
@@ -118,6 +120,7 @@ int*** init_3d_array(uint x, uint y, uint z) {
 }
 
 void store_3d_array(int ***A, uint length, const vector<string>& variants, const vector<char>& alphabet, ostream& out) {
+    cout << "Storing table." << endl;
     for (uint i=0; i<variants.size(); i++) {
         for (uint j=0; j<length; j++) {
             for (uint k=0; k<alphabet.size(); k++) {
@@ -125,6 +128,7 @@ void store_3d_array(int ***A, uint length, const vector<string>& variants, const
             }
         }
     }
+    cout << "Table stored successfully." << endl;
 }
 
 void delete_3d_array(int ***A, uint x, uint y) {
@@ -262,8 +266,6 @@ void add_counts(int ***A, const string& seq, const string& variant, const vector
     }
 }
 
-
-
 void check_sanity(const string& reference, const multimap<string, string>& snp) {
     for (const auto& s : snp) {
         char ref = s.first[0];
@@ -289,14 +291,31 @@ void correct_alphabet(string& seq, const vector<char>& alphabet, const char c) {
     }
 }
 
-int main() {
-    // inputs:
-    string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
-    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
-    string aln_filename = "/home/andy/projects/cpp_freqtable/data/unmapped2.sam";
-    string mut_filename = "/home/andy/projects/cpp_freqtable/data/mut.txt";
-    // outputs:
-    string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
+typedef enum {REF, MUT, ALN, OUT} arg;
+void parse_args(int argc, char **argv){
+    int opt;
+    while ((opt = getopt(argc, argv, "r:m:a:o:")) != -1) {
+        switch (opt) {
+            case 'r': argv[REF] = optarg; break;
+            case 'm': argv[MUT] = optarg; break;
+            case 'a': argv[ALN] = optarg; break;
+            case 'o': argv[OUT] = optarg; break;
+            default:
+                cerr << "Usage: " << argv[0] << " -r ref.fasta -m mut.txt -a aln.sam -o out.tsv" << endl;
+                exit(EXIT_FAILURE);
+        }
+    }
+}
+
+int main(int argc, char **argv) {
+    // run with:
+    // ./cmake-build-debug/cpp_freqtable -r data/covid_ref.fa -m data/mut.txt -a data/msa-minimap.sam -o data/full_out.tsv
+
+    parse_args(argc, argv);
+    string ref_filename = argv[REF];    // can be multiline fasta
+    string aln_filename = argv[ALN];    // sam has to end with empty line
+    string mut_filename = argv[MUT];    // can end with whitespace, has to end with empty line
+    string out_filename = argv[OUT];
 
     string ref = read_reference(ref_filename);
 
@@ -314,20 +333,16 @@ int main() {
 
     sam_reader sr(aln_filename);
     sr.skip_header();
-    int i = 0;
-    while (!sr.eof()) {
+    for (uint i=0; !sr.eof(); i++) {
         record rec = sr.get_next_record(ref.length());
         correct_alphabet(rec.seq, alphabet, 'N');
         rec.variant = detect_variant(rec.seq, snp, threshold);
         add_counts(A, rec.seq, rec.variant, variants, alphabet);
-        if (i % 1000 == 0){
-            cout << i << " records processed." << endl;
-        }
-        i++;
+        if (i % 1000 == 0){ cout << i << " records processed." << endl;}
     }
     cout << "All records processed." << endl;
 
-    fstream out = fstream(tsv_filename, fstream::out | fstream::trunc);
+    fstream out = fstream(out_filename, fstream::out | fstream::trunc);
     store_3d_array(A, ref.length(), variants, alphabet, out);
     delete_3d_array(A, ref.length(), variants.size());
     return 0;
