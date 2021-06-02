@@ -105,11 +105,11 @@ string read_reference(const string& filename) {
 
 int*** init_3d_array(uint x, uint y, uint z) {
     int*** res = new int**[x];
-    for (int i=0; i<x; i++) {
+    for (uint i=0; i<x; i++) {
         res[i] = new int*[y];
-        for (int j=0; j<y; j++) {
+        for (uint j=0; j<y; j++) {
             res[i][j] = new int[z];
-            for (int k=0; k<z; k++) {
+            for (uint k=0; k<z; k++) {
                 res[i][j][k] = 0;
             }
         }
@@ -118,16 +118,16 @@ int*** init_3d_array(uint x, uint y, uint z) {
 }
 
 void store_3d_array(int ***A, uint length, const vector<string>& variants, const vector<char>& alphabet, ostream& out) {
-    for (int i=0; i<variants.size(); i++) {
-        for (int j=0; j<length; j++) {
-            for (int k=0; k<alphabet.size(); k++) {
+    for (uint i=0; i<variants.size(); i++) {
+        for (uint j=0; j<length; j++) {
+            for (uint k=0; k<alphabet.size(); k++) {
                 out << variants.at(i) << '\t' << j << '\t' << alphabet.at(k) << '\t' << A[j][i][k] << endl;
             }
         }
     }
 }
 
-void delete_3d_array(int ***A, uint x, uint y, uint z) {
+void delete_3d_array(int ***A, uint x, uint y) {
     for (uint i=0; i<x; i++) {
         for (uint j=0; j<y; j++) {
             delete[] A[i][j];
@@ -182,15 +182,15 @@ void parse_cigar(const string& cigar, vector<uint>& op_size, vector<char>& op_ty
 }
 
 void match(const string& source, uint& rpos, uint& qpos, uint size, string& destination) {
-    for (int i=0; i<size; i++) {
+    for (uint i=0; i<size; i++) {
         destination[rpos + i] = source[qpos + i];
     }
     rpos += size;
     qpos += size;
 }
 
-void deletion(uint& rpos, uint& qpos, uint size, string& destination) {
-    for (int i=0; i<size; i++) {
+void deletion(uint& rpos, uint size, string& destination) {
+    for (uint i=0; i<size; i++) {
         destination[rpos + i] = '-';
     }
     rpos += size;
@@ -203,11 +203,11 @@ void add_seq(const sam_record& sam_rec, record& rec) {
 
     uint rpos = sam_rec.pos - 1;
     uint qpos = 0;
-    for (int j = 0; j < op_type.size(); j++) {
+    for (uint j = 0; j < op_type.size(); j++) {
         if (op_type[j] == 'M') {
             match(sam_rec.seq, rpos, qpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'D') {
-            deletion(rpos, qpos, op_size[j], rec.seq);
+            deletion(rpos, op_size[j], rec.seq);
         } else if (op_type[j] == 'I' || op_type[j] == 'S') {
             qpos += op_size[j];
         } else if (op_type[j] == 'H' ) {
@@ -254,7 +254,7 @@ string detect_variant(const string& seq, const multimap<string, string>& snps, m
 void add_counts(int ***A, const string& seq, const string& variant, const vector<string>& variants, const vector<char>& alphabet) {
     auto tmp = find(variants.begin(), variants.end(), variant);
     uint variant_num = distance(variants.begin(), tmp);
-    for (int i=0; i<seq.length(); i++) {
+    for (uint i=0; i<seq.length(); i++) {
         auto tmp2 = find(alphabet.begin(), alphabet.end(), seq.at(i));
         uint char_num;
         char_num = distance(alphabet.begin(), tmp2);
@@ -292,7 +292,8 @@ void correct_alphabet(string& seq, const vector<char>& alphabet, const char c) {
 int main() {
     // inputs:
     string ref_filename = "/home/andy/projects/cpp_freqtable/data/covid_ref.fa";
-    string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
+    // string aln_filename = "/home/andy/projects/cpp_freqtable/data/msa-minimap.sam";
+    string aln_filename = "/home/andy/projects/cpp_freqtable/data/unmapped2.sam";
     string mut_filename = "/home/andy/projects/cpp_freqtable/data/mut.txt";
     // outputs:
     string tsv_filename = "/home/andy/projects/cpp_freqtable/data/full_out.tsv";
@@ -328,6 +329,6 @@ int main() {
 
     fstream out = fstream(tsv_filename, fstream::out | fstream::trunc);
     store_3d_array(A, ref.length(), variants, alphabet, out);
-    delete_3d_array(A, ref.length(), variants.size(), alphabet.size());
+    delete_3d_array(A, ref.length(), variants.size());
     return 0;
 }
