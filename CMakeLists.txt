@@ -10,4 +10,4 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -O3 -march=native")
 message( "CMAKE_CXX20_STANDARD_COMPILE_OPTION is " ${CMAKE_CXX20_STANDARD_COMPILE_OPTION} ".")
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-add_executable(cpp_freqtable main.cpp)
+add_executable(cpp_freqtable src/main.cpp)
