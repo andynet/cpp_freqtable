@@ -11,3 +11,4 @@ message( "CMAKE_CXX20_STANDARD_COMPILE_OPTION is " ${CMAKE_CXX20_STANDARD_COMPIL
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 add_executable(cpp_freqtable src/main.cpp)
+add_executable(readstofreq src/csv_from_reads.cpp)
