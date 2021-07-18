@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -159,11 +160,11 @@ void read_mutations(const string& filename, vector<string>& variants, multimap<s
         stringstream ss(tmp);
         ss >> variant >> thr;
         variants.push_back(variant);
-        thresholds.insert(pair(variant, thr));
+        thresholds.insert(pair<string, uint>(variant, thr));
         string snp;
         while (!ss.eof()) {
             ss >> snp;
-            snps.insert(pair(snp, variant));
+            snps.insert(pair<string, string>(snp, variant));
         }
     }
 }
@@ -237,7 +238,8 @@ string detect_variant(const string& seq, const multimap<string, string>& snps, m
         uint pos = get_pos(snp.first);
         char alt = snp.first[snp.first.length()-1];
         if (seq.at(pos) == alt) {
-            if (counter.contains(snp.second)) {
+            auto wtf = counter.find(snp.second);
+            if (wtf != end(counter)) {
                 counter[snp.second] += 1;
             } else {
                 counter[snp.second] = 1;

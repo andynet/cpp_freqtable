@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -164,11 +165,11 @@ void read_mutations(const string& filename, vector<string>& variants, multimap<s
         stringstream ss(tmp);
         ss >> variant >> thr;
         variants.push_back(variant);
-        thresholds.insert(pair(variant, thr));
+        thresholds.insert(pair<string, uint>(variant, thr));
         string snp;
         while (!ss.eof()) {
             ss >> snp;
-            snps.insert(pair(snp, variant));
+            snps.insert(pair<string, string>(snp, variant));
         }
     }
 }
@@ -231,33 +232,6 @@ void add_seq(const sam_record& sam_rec, record& rec) {
 
 uint get_pos(const string& s) {
     return stoi(s.substr(1, s.length()-1)) - 1;
-}
-
-string detect_variant(const string& seq, const multimap<string, string>& snps, map<string, uint>& thresholds) {
-    string variant = OTHER;
-    if (seq.empty()) {return variant;}
-
-    map<string, uint> counter;
-    for (const auto& snp : snps) {
-        uint pos = get_pos(snp.first);
-        char alt = snp.first[snp.first.length()-1];
-        if (seq.at(pos) == alt) {
-            if (counter.contains(snp.second)) {
-                counter[snp.second] += 1;
-            } else {
-                counter[snp.second] = 1;
-            }
-        }
-    }
-
-    for (const auto& c : counter) {
-        string tmp = string(c.first);
-        if (c.second >= thresholds[tmp]) {
-            variant = tmp;
-        }
-    }
-
-    return variant;
 }
 
 void add_counts(int ***A, const string& seq, const string& variant, const vector<string>& variants, const vector<char>& alphabet) {
