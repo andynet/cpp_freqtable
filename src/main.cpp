@@ -157,6 +157,7 @@ void read_mutations(const string& filename, vector<string>& variants, multimap<s
     while (!file.eof()) {
         getline(file, tmp);
         tmp = trim(tmp);
+        if (tmp.length() == 0) { continue; }
         stringstream ss(tmp);
         ss >> variant >> thr;
         variants.push_back(variant);
