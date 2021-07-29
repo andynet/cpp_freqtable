@@ -120,8 +120,9 @@ int*** init_3d_array(uint x, uint y, uint z) {
     return res;
 }
 
-void store_3d_array(int ***A, uint length, const vector<string>& variants, const vector<char>& alphabet, ostream& out) {
-    cout << "Storing table." << endl;
+void store_3d_array(int ***A, uint length, const vector<string>& variants, const vector<char>& alphabet, const string& out_filename) {
+    fstream out = fstream(out_filename, fstream::out | fstream::trunc);
+    cout << "Storing table to " << out_filename << endl;
     for (uint i=0; i<variants.size(); i++) {
         for (uint j=0; j<length; j++) {
             for (uint k=0; k<alphabet.size(); k++) {
@@ -345,8 +346,7 @@ int main(int argc, char **argv) {
     }
     cout << "All records processed." << endl;
 
-    fstream out = fstream(out_filename, fstream::out | fstream::trunc);
-    store_3d_array(A, ref.length(), variants, alphabet, out);
+    store_3d_array(A, ref.length(), variants, alphabet, out_filename);
     delete_3d_array(A, ref.length(), variants.size());
     return 0;
 }

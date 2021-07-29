@@ -1,0 +1,19 @@
+main
+    parse_arguments -> bam, meta, variants, lineages
+
+    load_variants
+
+    create_lineage_map
+
+    create_map_id2pangolin(meta)
+
+    table = init_table()
+    open(bam)
+    while not the end:
+        record = read_record
+        get_variant(record, id2pangolin_map, lineage_map)
+        add_counts(record, variants, table)
+
+    store(table)
+    free(table)
+
