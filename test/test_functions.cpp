@@ -9,11 +9,14 @@ Test(core, get_num_lines_returns_correct_value) {
 }
 
 Test(core, load_variant_loads) {
-    const char *variants_file = "../data/test/variants.txt";
+    // Why can't I use const in the test?
+    // const char *variants_file = "../data/test/variants.txt";
     char **variants;
     uint number;
 
-    load_variants(variants_file, &variants, &number);
-    int res = strcmp(variants[0], "B.1.1.7");
-    printf("%d\n", res);
+    load_variants("../data/test/variants.txt", &variants, &number);
+    cr_assert(strcmp(variants[0], "B.1.1.7") == 0);
+    cr_assert(strcmp(variants[1], "B.1.160") == 0);
+    cr_assert(strcmp(variants[2], "B.1.177") == 0);
+    cr_assert(strcmp(variants[3], "B.1.258") == 0);
 }

@@ -28,6 +28,7 @@ void strip(char *str) {
 void load_variants(const char *filename, char ***variants_ptr, uint *number_ptr) {
     FILE *stream = fopen(filename, "r");
     (*variants_ptr) = (char **) malloc(sizeof (**variants_ptr) * 8);
+
     char *line = NULL;
     size_t len = 0;
     ssize_t nread;
@@ -37,5 +38,18 @@ void load_variants(const char *filename, char ***variants_ptr, uint *number_ptr)
         strcpy((*variants_ptr)[*number_ptr], line);
         (*number_ptr)++;
     }
+    free(line);
+    line = NULL;
+
+    fclose(stream);
+    return;
+}
+
+void dealloc_variants(char ***variants_ptr, uint *number_ptr) {
+    for (uint i=0; i<(*number_ptr); i++) {
+        free((*variants_ptr)[i]);
+    }
+    free((*variants_ptr));
+    return;
 }
 
